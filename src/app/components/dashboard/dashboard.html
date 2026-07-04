@@ -42,85 +42,82 @@
     </div>
 
     <!-- 右側：AG Charts 資產配比圓餅圖 -->
-    <div style="flex: 1; min-width: 400px; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); display: flex; flex-direction: column;">
+    <!-- 📊 1. 修正圓餅圖：強制給予外層高度 300px -->
+    <div style="flex: 1; min-width: 400px; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.05);">
       <h3 style="margin-bottom: 15px; color: #333;">VStockLab 資產健康度</h3>
-      <ag-charts
-          style="width: 100%; height: 280px; display: block;"
-          [options]="chartOptions">
-      </ag-charts>
+        <!-- 這裡的 height: 300px 是關鍵，AG Charts 沒有它就不會顯示 -->
+        <div style="height: 300px; width: 100%;">
+            <ag-charts style="width: 100%; height: 100%; display: block;" [options]="chartOptions"></ag-charts>
+        </div>
     </div>
   </div>
 
-  <!-- 🚀 新增：VStockLab AI 策略水位監控中心 -->
+  <!-- 🚀 2. 全新的動態策略水位監控中心 (放在畫面最下方) -->
   <div *ngIf="summary" style="margin-top: 40px; background: white; padding: 30px; border-radius: 8px; box-shadow: 0 4px 15px rgba(0,0,0,0.05);">
 
-      <div style="display: flex; justify-content: space-between; align-items: flex-end; border-bottom: 2px solid #eee; padding-bottom: 15px; margin-bottom: 25px;">
+      <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #eee; padding-bottom: 15px; margin-bottom: 25px;">
           <h2 style="margin: 0; color: #2c3e50;">🤖 AI 策略水位監控中心</h2>
-          <div style="text-align: right;">
-              <span style="color: #7f8c8d; font-size: 14px;">真實總資產 (已扣除交割款)</span>
-              <div style="font-size: 24px; font-weight: bold; color: #2c3e50;">
-                  NT$ {{ totalAssets | number:'1.0-0' }}
-              </div>
+
+          <!-- 動態新增區間的輸入框與按鈕 -->
+          <div style="display: flex; gap: 10px; align-items: center;">
+              <span style="color: #7f8c8d; font-size: 14px;">自訂策略邊界 (%)：</span>
+              <!-- 使用 #bpInput 獲取輸入值，按下按鈕後清空 -->
+              <input #bpInput type="number" min="1" max="99" placeholder="例如: 45" style="width: 80px; padding: 5px; border-radius: 4px; border: 1px solid #ccc;">
+              <button (click)="addBreakpoint(bpInput.value); bpInput.value=''" style="padding: 6px 12px; background: #3498db; color: white; border: none; border-radius: 4px; cursor: pointer;">
+                  + 新增區段
+              </button>
           </div>
       </div>
 
-      <!-- 📊 自訂視覺化水位條 -->
-      <div style="margin-bottom: 30px; position: relative;">
-          <div style="display: flex; justify-content: space-between; margin-bottom: 8px; font-size: 13px; font-weight: bold; color: #7f8c8d;">
-              <span>0%</span>
-              <span>自訂策略邊界設定</span>
-              <span>100%</span>
+      <!-- 動態多色進度條 -->
+      <div style="position: relative; margin: 40px 0 20px 0;">
+          <div style="display: flex; height: 35px; border-radius: 8px; overflow: hidden; box-shadow: inset 0 2px 4px rgba(0,0,0,0.1);">
+
+              <!-- 使用 *ngFor 渲染動態產生的區段 -->
+              <div *ngFor="let seg of getSegments()"
+                   [style.width.%]="seg.width"
+                   [style.backgroundColor]="seg.color"
+                   style="position: relative; display: flex; align-items: center; justify-content: flex-end; padding-right: 15px; color: white; font-weight: bold; border-right: 1px solid rgba(255,255,255,0.3);">
+
+                  <!-- 顯示邊界數字 -->
+                  <span *ngIf="!seg.isLast">{{ seg.end }}%</span>
+
+                  <!-- 刪除區段的小按鈕 -->
+                  <button *ngIf="!seg.isLast" (click)="removeBreakpoint(seg.end)" style="margin-left: 8px; background: rgba(0,0,0,0.2); border: none; color: white; border-radius: 50%; width: 20px; height: 20px; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 12px;">
+                      ✕
+                  </button>
+              </div>
+
           </div>
 
-          <!-- 區間設定輸入框與彩色 Bar -->
-          <div style="display: flex; height: 40px; border-radius: 6px; overflow: hidden; box-shadow: inset 0 2px 4px rgba(0,0,0,0.1);">
-              <!-- Zone 1 -->
-              <div style="background-color: #2ecc71; display: flex; align-items: center; justify-content: center;" [style.width]="zone1Max + '%'">
-                  <input type="number" [value]="zone1Max" (input)="updateZone(1, $event)" style="width: 45px; text-align: center; border: none; background: rgba(255,255,255,0.8); border-radius: 4px; font-weight: bold;">
-                  <span style="color: white; margin-left: 5px; font-size: 12px;">%</span>
+          <!-- 當前水位指標 (三角形游標) -->
+          <div [style.left.%]="currentHoldingsPercentage" style="position: absolute; top: -35px; transform: translateX(-50%); display: flex; flex-direction: column; align-items: center;">
+              <div style="background: #2c3e50; color: white; padding: 4px 10px; border-radius: 4px; font-weight: bold; font-size: 14px; white-space: nowrap;">
+                  當前持股水位: {{ currentHoldingsPercentage | number:'1.1-1' }}%
               </div>
-              <!-- Zone 2 -->
-              <div style="background-color: #f39c12; display: flex; align-items: center; justify-content: center;" [style.width]="(zone2Max - zone1Max) + '%'">
-                  <input type="number" [value]="zone2Max" (input)="updateZone(2, $event)" style="width: 45px; text-align: center; border: none; background: rgba(255,255,255,0.8); border-radius: 4px; font-weight: bold;">
-                  <span style="color: white; margin-left: 5px; font-size: 12px;">%</span>
-              </div>
-              <!-- Zone 3 -->
-              <div style="background-color: #e67e22; display: flex; align-items: center; justify-content: center;" [style.width]="(zone3Max - zone2Max) + '%'">
-                  <input type="number" [value]="zone3Max" (input)="updateZone(3, $event)" style="width: 45px; text-align: center; border: none; background: rgba(255,255,255,0.8); border-radius: 4px; font-weight: bold;">
-                  <span style="color: white; margin-left: 5px; font-size: 12px;">%</span>
-              </div>
-              <!-- Zone 4 -->
-              <div style="background-color: #e74c3c; width: 100%; display: flex; align-items: center; justify-content: center;">
-                  <span style="color: white; font-size: 14px; font-weight: bold;">高警戒區</span>
-              </div>
-          </div>
-
-          <!-- 🔻 當前資產指針 (Pointer) -->
-          <div style="position: absolute; top: 65px; transform: translateX(-50%); transition: left 0.5s ease-out;"
-               [style.left]="currentStockRatio + '%'">
-              <div style="width: 0; height: 0; border-left: 10px solid transparent; border-right: 10px solid transparent; border-bottom: 12px solid #2c3e50; margin: 0 auto;"></div>
-              <div style="background: #2c3e50; color: white; padding: 6px 12px; border-radius: 4px; font-weight: bold; font-size: 14px; white-space: nowrap; margin-top: 2px;">
-                  當前持股水位: {{ currentStockRatio | number:'1.1-1' }}%
-              </div>
+              <div style="width: 0; height: 0; border-left: 8px solid transparent; border-right: 8px solid transparent; border-top: 10px solid #2c3e50;"></div>
           </div>
       </div>
 
-      <!-- 💡 當前觸發策略面板 -->
-      <div style="margin-top: 70px; padding: 25px; border-radius: 8px; color: white; transition: all 0.3s ease; display: flex; align-items: center; gap: 20px;"
-           [style.backgroundColor]="activeStrategy.color">
-          <div style="font-size: 48px; background: rgba(255,255,255,0.2); width: 80px; height: 80px; display: flex; align-items: center; justify-content: center; border-radius: 50%;">
+      <!-- 底部：動態策略資訊卡片 -->
+      <div *ngIf="getCurrentStrategyInfo() as strategy"
+           [style.backgroundColor]="strategy.color"
+           style="margin-top: 30px; padding: 25px; border-radius: 8px; color: white; transition: background-color 0.3s ease; display: flex; align-items: center; gap: 20px;">
+
+          <div style="font-size: 40px; background: rgba(255,255,255,0.2); width: 70px; height: 70px; border-radius: 50%; display: flex; align-items: center; justify-content: center;">
               🎯
           </div>
           <div>
-              <div style="font-size: 14px; font-weight: bold; letter-spacing: 1px; opacity: 0.9;">
-                  根據目前部位 ({{ currentStockRatio | number:'1.1-1' }}%) 落入區間 [{{ activeStrategy.range }}]
+              <div style="font-size: 14px; font-weight: bold; margin-bottom: 5px; opacity: 0.9;">
+                  系統已根據目前部位落入區間 {{ strategy.range }} 自動鎖定：
               </div>
-              <h3 style="margin: 8px 0; font-size: 26px;">系統已自動鎖定：{{ activeStrategy.name }}</h3>
-              <p style="margin: 0; font-size: 16px; line-height: 1.5; opacity: 0.95;">
-                  {{ activeStrategy.desc }}
+              <h3 style="margin: 0 0 8px 0; font-size: 24px;">{{ strategy.name }}</h3>
+              <p style="margin: 0; font-size: 15px; line-height: 1.5; opacity: 0.95;">
+                  {{ strategy.description }}
               </p>
           </div>
       </div>
+
   </div>
 
 </div>

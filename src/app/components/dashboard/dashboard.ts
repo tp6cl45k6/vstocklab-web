@@ -9,9 +9,14 @@ import {
 
 import { AgCharts } from 'ag-charts-angular';
 import {
-  AgChartOptions
+  AgChartOptions,
+  ModuleRegistry as ChartModuleRegistry,
+  PieSeriesModule
 } from 'ag-charts-community';
-import { AccountService, AccountSummary } from '../../services/account';
+import { AccountService, AccountSummary } from '../../services/account'; // 確認您的路徑
+
+// 註冊 AG Charts 需要的模組 (例如：圓餅圖)
+ChartModuleRegistry.registerModules([PieSeriesModule]);
 
 @Component({
   selector: 'app-dashboard',
@@ -37,27 +42,28 @@ export class DashboardComponent implements OnInit {
   ];
 
   // 📊 AG Charts 圓餅圖的初始設定 (精簡版)
+  // 📊 AG Charts 穩健版設定 (確保背景透明與基本屬性正確)
   public chartOptions: AgChartOptions = {
     data: [],
-    background: { fill: 'transparent' },
+    background: { visible: false },
     series: [{
-      type: 'pie',
+      type: 'pie'as any,
       angleKey: 'amount',
       calloutLabelKey: 'asset',
       sectorLabelKey: 'amount',
-      innerRadiusRatio: 0.5 // 甜甜圈圖效果
+      innerRadiusRatio: 0.6, // 甜甜圈樣式
     }]
-  } as any;
+  };
 
-  // 🚀 核心：總資產與當前水位
+  // 🚀 動態策略控制台變數
   public totalAssets: number = 0;           // 正確的總資產
-  public currentStockRatio: number = 0;     // 當前股票佔總資產的百分比 (%)
+  public currentHoldingsPercentage: number = 0;
 
-  // 🚀 核心：策略區間閾值 (Thresholds)
-  public zone1Max: number = 30; // 0% ~ 30%
-  public zone2Max: number = 60; // 30% ~ 60%
-  public zone3Max: number = 80; // 60% ~ 80%
-  // 80% ~ 100% 為最後一個區間
+  // 核心：自訂策略邊界陣列 (預設 30, 60, 80)
+  public breakpoints: number[] = [30, 60, 80];
+
+  // 策略區塊顏色庫
+  private strategyColors = ['#2ecc71', '#f39c12', '#e67e22', '#e74c3c', '#8e44ad', '#2c3e50'];
 
   constructor(private accountService: AccountService) {}
 
@@ -68,14 +74,11 @@ export class DashboardComponent implements OnInit {
         const reservedSettlement = Math.abs(data.settlementAmount);
         const realAvailableCash = data.balance - reservedSettlement;
 
-        // 2. 修正總資產：真實可用現金 + 股票帳面淨值
+        // 計算真實總資產與持股佔比 (淨權益數 / 真實總資產)
         this.totalAssets = realAvailableCash + data.stockValue;
+        this.currentHoldingsPercentage = this.totalAssets > 0 ? (data.stockValue / this.totalAssets) * 100 : 0;
 
-        // 3. 計算當前股票部位佔比 (%)
-        if (this.totalAssets > 0) {
-          this.currentStockRatio = (data.stockValue / this.totalAssets) * 100;
-        }
-
+        // ... (更新 AG Grid rowData 的邏輯保留) ...
         this.rowData = [
           { category: '🟢 真實可用現金', amount: realAvailableCash },
           { category: '🔴 T+2 已佔用交割款', amount: reservedSettlement },
@@ -83,6 +86,7 @@ export class DashboardComponent implements OnInit {
           { category: '💰 銀行帳戶總餘額', amount: data.balance }
         ];
 
+        // ⚠️ 關鍵修正：透過展開運算子 (...) 產生全新物件，強制觸發 AG Charts 重繪
         this.chartOptions = {
           ...this.chartOptions,
           data: [
@@ -90,75 +94,82 @@ export class DashboardComponent implements OnInit {
             { asset: '可用現金', amount: realAvailableCash },
             { asset: '待交割款', amount: reservedSettlement },
             { asset: '帳面市值', amount: data.stockValue }
-          ],
-          series: [{
-            type: 'pie',
-            angleKey: 'amount',
-            calloutLabelKey: 'asset', // 拉出引線顯示名稱
-            fills: ['#2ecc71', '#e74c3c', '#3498db'],
-            strokeWidth: 2,
-            stroke: 'white', // 加上白色間距讓扇形更好看
-            innerRadiusRatio: 0.65,
-            innerLabels: [
-              { text: 'VStockLab 總資產', fontSize: 14, color: '#7f8c8d' },
-              {
-                // 甜甜圈中間顯示修正後的總資產
-                text: `NT$ ${(this.totalAssets / 10000).toFixed(1)}萬`,
-                fontSize: 22,
-                fontWeight: 'bold',
-                color: '#2c3e50',
-                margin: 4
-              }
-            ] as any,
-
-            sectorLabelKey: 'amount',
-            sectorLabel: {
-              color: 'white',
-              fontWeight: 'bold',
-              formatter: ({ value }: any) => {
-                // 計算這個扇形佔整個圓的百分比
-                const total = realAvailableCash + reservedSettlement + data.stockValue;
-                const percentage = ((Number(value) / total) * 100).toFixed(1);
-
-                // 如果佔比太小(例如交割款)，就不顯示文字避免擠在一起
-                if (Number(percentage) < 5) return '';
-
-                // 顯示： xx%
-                return `${percentage}%`;
-              }
-            },
-            tooltip: {
-              renderer: (params: any) => {
-                return {
-                  title: params.datum.asset,
-                  content: `NT$ ${Number(params.datum.amount).toLocaleString('zh-TW')}`
-                };
-              }
-            }
-          }]
-        } as any;
+          ]
+        };
       }
     });
   }
 
-  // 更新區間閾值的函數
-  updateZone(zoneNumber: number, event: Event) {
-    const value = Number((event.target as HTMLInputElement).value);
-    if (zoneNumber === 1) this.zone1Max = value;
-    if (zoneNumber === 2) this.zone2Max = value;
-    if (zoneNumber === 3) this.zone3Max = value;
+  // ➕ 新增自訂區間
+  addBreakpoint(value: string) {
+    const num = Number(value);
+    // 確保輸入的是 1~99 的數字，且陣列中還沒有這個值
+    if (num > 0 && num < 100 && !this.breakpoints.includes(num)) {
+      this.breakpoints.push(num);
+      // 由小到大排序，確保長條圖繪製正確
+      this.breakpoints.sort((a, b) => a - b);
+    }
   }
 
-  // 根據當前水位，AI 自動判定落在哪個策略
-  get activeStrategy() {
-    if (this.currentStockRatio <= this.zone1Max) {
-      return { id: 1, name: '策略一 (建倉期)', desc: '持股過低。啟動網格買入或定期定額策略，優先佈局高股息 ETF。', color: '#2ecc71', range: `0% ~ ${this.zone1Max}%` };
-    } else if (this.currentStockRatio <= this.zone2Max) {
-      return { id: 2, name: '策略二 (波段操作)', desc: '持股適中。套用動能交易腳本，尋找突破買點，並嚴格執行部分停利。', color: '#f39c12', range: `${this.zone1Max}% ~ ${this.zone2Max}%` };
-    } else if (this.currentStockRatio <= this.zone3Max) {
-      return { id: 3, name: '策略三 (高位防禦)', desc: '持股偏高。停止買進新部位，啟動移動停損腳本，保留現金彈性。', color: '#e67e22', range: `${this.zone2Max}% ~ ${this.zone3Max}%` };
+  // ➖ 刪除自訂區間
+  removeBreakpoint(bp: number) {
+    this.breakpoints = this.breakpoints.filter(val => val !== bp);
+  }
+
+  // 🧩 動態計算長條圖的每一個區塊 (Segments)
+  getSegments() {
+    let segments = [];
+    let previous = 0;
+
+    this.breakpoints.forEach((bp, index) => {
+      segments.push({
+        start: previous,
+        end: bp,
+        width: bp - previous,
+        color: this.strategyColors[index % this.strategyColors.length],
+        isLast: false
+      });
+      previous = bp;
+    });
+
+    // 補上最後一段到 100% 的區塊
+    segments.push({
+      start: previous,
+      end: 100,
+      width: 100 - previous,
+      color: this.strategyColors[this.breakpoints.length % this.strategyColors.length],
+      isLast: true
+    });
+
+    return segments;
+  }
+
+  // 🎯 根據當前持股水位，動態決定要顯示的策略內容
+  getCurrentStrategyInfo() {
+    const segments = this.getSegments();
+    // 找出當前水位落在哪一個區塊
+    const activeSeg = segments.find(s => this.currentHoldingsPercentage >= s.start && this.currentHoldingsPercentage <= s.end) || segments[0];
+
+    // 動態回傳策略內容
+    let strategyName = '';
+    let strategyDesc = '';
+
+    if (activeSeg.start < 30) {
+      strategyName = '防禦建倉期 (Low Risk)';
+      strategyDesc = '水位極低。啟動 n8n 監控 00919、00999A 等高股息 ETF 買點，穩健建立底倉。';
+    } else if (activeSeg.start < 60) {
+      strategyName = '波段操作期 (Medium Risk)';
+      strategyDesc = '持股適中。透過 AI 顧問過濾 VStockLab 訊號，尋找強勢突破股進行波段操作。';
     } else {
-      return { id: 4, name: '策略四 (極端警戒)', desc: '滿倉風險極高。強制減碼弱勢股，嚴禁使用融資，確保 T+2 交割安全。', color: '#e74c3c', range: `${this.zone3Max}% ~ 100%` };
+      strategyName = '動能警戒區 (High Risk)';
+      strategyDesc = '部位偏高！需嚴格控管融資槓桿，並強制啟動 n8n 自動停損停利機制。';
     }
+
+    return {
+      range: `[${activeSeg.start}% ~ ${activeSeg.end}%]`,
+      color: activeSeg.color,
+      name: strategyName,
+      description: strategyDesc
+    };
   }
 }
