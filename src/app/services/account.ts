@@ -1,27 +1,25 @@
 import { Injectable } from '@angular/core';
-import { Observable, of } from 'rxjs';
-import { delay } from 'rxjs/operators';
+import { HttpClient } from '@angular/common/http'; // 👈 新增這行
+import { Observable } from 'rxjs';
 
 export interface AccountSummary {
   accountNumber: string;
   ownerName: string;
-  balance: number;          // 帳戶餘額
-  stockValue: number;       // 股票市值
-  settlementAmount: number; // T+2 交割金額
+  balance: number;
+  stockValue: number;
+  settlementAmount: number;
 }
 
 @Injectable({
   providedIn: 'root',
 })
 export class AccountService {
+
+  // 注入 HttpClient
+  constructor(private http: HttpClient) {}
+
   getAccountSummary(): Observable<AccountSummary> {
-    // 模擬打 API 並等待 500 毫秒的延遲感
-    return of({
-      accountNumber: '0012345678',
-      ownerName: 'Demo User',
-      balance: 125000,
-      stockValue: 854300,
-      settlementAmount: -32000, // 負數代表需要扣款
-    }).pipe(delay(500));
+    // 捨棄假資料，直接打向剛剛建立的本機後端 API
+    return this.http.get<AccountSummary>('http://localhost:3000/api/account/summary');
   }
 }
