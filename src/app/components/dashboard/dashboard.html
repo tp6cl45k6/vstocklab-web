@@ -1,6 +1,35 @@
-<div *ngIf="accountSummary$ | async as summary">
-  <h2>Account Summary</h2>
-  <p>Owner: {{ summary.ownerName }}</p>
-  <p>Account: {{ summary.accountNumber }}</p>
-  <p>Balance: {{ summary.balance | currency }}</p>
+<div class="dashboard-container" *ngIf="accountSummary$ | async as summary; else loading">
+  <h2 class="section-title">帳號資金狀態</h2>
+
+  <div class="card-grid">
+    <!-- 帳戶餘額 -->
+    <div class="stat-card">
+      <div class="card-title">帳戶餘額</div>
+      <div class="card-value highlight-blue">
+        {{ summary.balance | currency:'TWD':'symbol':'1.0-0' }}
+      </div>
+    </div>
+
+    <!-- 股票市值 -->
+    <div class="stat-card">
+      <div class="card-title">股票總市值</div>
+      <div class="card-value">
+        {{ summary.stockValue | currency:'TWD':'symbol':'1.0-0' }}
+      </div>
+    </div>
+
+    <!-- 交割金額 -->
+    <div class="stat-card" [class.alert]="summary.settlementAmount < 0">
+      <div class="card-title">T+2 預估交割金額</div>
+      <div class="card-value">
+        {{ summary.settlementAmount | currency:'TWD':'symbol':'1.0-0' }}
+      </div>
+    </div>
+  </div>
 </div>
+
+<ng-template #loading>
+  <div class="loading-state">
+    資料同步中，請稍候...
+  </div>
+</ng-template>
