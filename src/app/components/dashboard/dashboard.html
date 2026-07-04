@@ -1,0 +1,6 @@
+<div *ngIf="accountSummary$ | async as summary">
+  <h2>Account Summary</h2>
+  <p>Owner: {{ summary.ownerName }}</p>
+  <p>Account: {{ summary.accountNumber }}</p>
+  <p>Balance: {{ summary.balance | currency }}</p>
+</div>
