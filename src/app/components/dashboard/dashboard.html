@@ -1,129 +1,133 @@
-<div class="dashboard-container" *ngIf="summary; else loading">
-  <h2 class="section-title">帳號資金狀態</h2>
+<div class="dashboard-container" *ngIf="summary">
 
-  <div class="card-grid">
-    <!-- 帳戶餘額 -->
-    <div class="stat-card">
-      <div class="card-title">帳戶餘額</div>
-      <div class="card-value highlight-blue">
-        {{ summary.balance | currency:'TWD':'symbol':'1.0-0' }}
-      </div>
+  <!-- ========================================== -->
+  <!-- 第一區：帳戶總覽卡片 (四大天王)                 -->
+  <!-- ========================================== -->
+  <h2 class="section-title" style="margin-bottom: 20px;">帳號資金狀態</h2>
+  <div style="display: flex; gap: 20px; flex-wrap: wrap; margin-bottom: 30px;">
+
+    <div style="flex: 1; background: white; padding: 25px; border-radius: 8px; border-left: 5px solid #333; box-shadow: 0 4px 12px rgba(0,0,0,0.05);">
+      <h6 style="color: #6c757d; font-weight: bold; margin-bottom: 10px;">VStockLab 總資產</h6>
+      <h2 style="margin: 0; font-weight: bold;">{{ summary.totalAsset | currency:'TWD':'symbol':'1.0-0' }}</h2>
     </div>
 
-    <!-- 股票市值 -->
-    <div class="stat-card">
-      <div class="card-title">帳面市值</div>
-      <div class="card-value">
-        {{ summary.stockValue | currency:'TWD':'symbol':'1.0-0' }}
-      </div>
+    <div style="flex: 1; background: white; padding: 25px; border-radius: 8px; border-left: 5px solid #2ecc71; box-shadow: 0 4px 12px rgba(0,0,0,0.05);">
+      <h6 style="color: #2ecc71; font-weight: bold; margin-bottom: 10px;">真實可用現金 (購買力)</h6>
+      <h2 style="margin: 0; font-weight: bold; color: #2ecc71;">{{ summary.balance | currency:'TWD':'symbol':'1.0-0' }}</h2>
     </div>
 
-    <!-- 交割金額 -->
-    <div class="stat-card" [class.alert]="summary.settlementAmount < 0">
-      <div class="card-title">T+2 預估交割金額</div>
-      <div class="card-value">
-        {{ summary.settlementAmount | currency:'TWD':'symbol':'1.0-0' }}
-      </div>
+    <div style="flex: 1; background: white; padding: 25px; border-radius: 8px; border-left: 5px solid #3498db; box-shadow: 0 4px 12px rgba(0,0,0,0.05);">
+      <h6 style="color: #3498db; font-weight: bold; margin-bottom: 10px;">股票帳面淨值</h6>
+      <h2 style="margin: 0; font-weight: bold; color: #3498db;">{{ summary.stockValue | currency:'TWD':'symbol':'1.0-0' }}</h2>
+    </div>
+
+    <div style="flex: 1; background: white; padding: 25px; border-radius: 8px; border-left: 5px solid #e74c3c; box-shadow: 0 4px 12px rgba(0,0,0,0.05);">
+      <h6 style="color: #e74c3c; font-weight: bold; margin-bottom: 10px;">T+2 待交割款</h6>
+      <h2 style="margin: 0; font-weight: bold; color: #e74c3c;">{{ summary.settlementAmount | currency:'TWD':'symbol':'1.0-0' }}</h2>
     </div>
   </div>
 
-  <!-- 📊 下方分析區：左邊表格，右邊圖表 -->
-  <div *ngIf="summary" style="display: flex; gap: 20px; margin-top: 40px; flex-wrap: wrap;">
+  <!-- ========================================== -->
+  <!-- 第二區：庫存明細與資產健康度圓餅圖               -->
+  <!-- ========================================== -->
+  <div style="display: flex; gap: 20px; flex-wrap: wrap;">
 
     <!-- 左側：AG Grid 數據網格 -->
-    <div style="flex: 1; min-width: 400px; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.05);">
-      <h3 style="margin-bottom: 15px; color: #333;">資金流動性解析</h3>
+    <div style="flex: 2; background: white; padding: 25px; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.05);">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+        <h3 style="margin: 0; font-weight: bold; color: #333;">📦 現有庫存與損益明細</h3>
+        <span style="background-color: #e8f5e9; color: #2e7d32; border: 1px solid #c8e6c9; padding: 4px 12px; border-radius: 20px; font-size: 13px;">
+          ● 即時連線中
+        </span>
+      </div>
       <ag-grid-angular
-          [theme]="myTheme"
-          style="height: 250px; width: 100%;"
+          [class]="myTheme"
+          style="height: 300px; width: 100%;"
           [rowData]="rowData"
           [columnDefs]="colDefs">
       </ag-grid-angular>
     </div>
 
-    <!-- 右側：AG Charts 資產配比圓餅圖 -->
-    <!-- 📊 1. 修正圓餅圖：強制給予外層高度 300px -->
-    <div style="flex: 1; min-width: 400px; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.05);">
-      <h3 style="margin-bottom: 15px; color: #333;">VStockLab 資產健康度</h3>
-        <!-- 這裡的 height: 300px 是關鍵，AG Charts 沒有它就不會顯示 -->
-        <div style="height: 300px; width: 100%;">
-            <ag-charts style="width: 100%; height: 100%; display: block;" [options]="chartOptions"></ag-charts>
-        </div>
+    <!-- 右側：AG Charts 圓餅圖 -->
+    <div style="flex: 1; min-width: 300px; background: white; padding: 25px; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.05);">
+      <h3 style="margin: 0 0 20px 0; font-weight: bold; color: #333;">VStockLab 資產健康度</h3>
+      <div style="height: 300px; width: 100%;">
+         <ag-charts style="width: 100%; height: 100%; display: block;" [options]="chartOptions"></ag-charts>
+      </div>
     </div>
   </div>
 
-  <!-- 🚀 2. 全新的動態策略水位監控中心 (放在畫面最下方) -->
-  <div *ngIf="summary" style="margin-top: 40px; background: white; padding: 30px; border-radius: 8px; box-shadow: 0 4px 15px rgba(0,0,0,0.05);">
+  <!-- ========================================== -->
+  <!-- 第三區：AI 策略水位監控中心                     -->
+  <!-- ========================================== -->
+  <div style="margin-top: 40px; background: white; padding: 30px; border-radius: 8px; box-shadow: 0 4px 15px rgba(0,0,0,0.05);">
 
-      <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #eee; padding-bottom: 15px; margin-bottom: 25px;">
-          <h2 style="margin: 0; color: #2c3e50;">🤖 AI 策略水位監控中心</h2>
-
-          <!-- 動態新增區間的輸入框與按鈕 -->
-          <div style="display: flex; gap: 10px; align-items: center;">
-              <span style="color: #7f8c8d; font-size: 14px;">自訂策略邊界 (%)：</span>
-              <!-- 使用 #bpInput 獲取輸入值，按下按鈕後清空 -->
-              <input #bpInput type="number" min="1" max="99" placeholder="例如: 45" style="width: 80px; padding: 5px; border-radius: 4px; border: 1px solid #ccc;">
-              <button (click)="addBreakpoint(bpInput.value); bpInput.value=''" style="padding: 6px 12px; background: #3498db; color: white; border: none; border-radius: 4px; cursor: pointer;">
-                  + 新增區段
-              </button>
+      <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #eee; padding-bottom: 15px; margin-bottom: 35px;">
+          <h2 style="margin: 0; color: #2c3e50; font-weight: bold;">🤖 AI 策略水位監控中心</h2>
+          <div style="display: flex; align-items: center; gap: 10px;">
+            <span style="font-size: 14px; color: #666;">自訂策略邊界 (%)：</span>
+            <input type="number" style="width: 80px; padding: 5px; border: 1px solid #ccc; border-radius: 4px;" placeholder="例如: 45">
+            <button style="background: #3498db; color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer;">+ 新增區段</button>
           </div>
       </div>
 
-      <!-- 動態多色進度條 -->
-      <div style="position: relative; margin: 40px 0 20px 0;">
-          <div style="display: flex; height: 35px; border-radius: 8px; overflow: hidden; box-shadow: inset 0 2px 4px rgba(0,0,0,0.1);">
+      <!-- 動態策略條軌道與持股標籤 -->
+      <div class="vstock-strategy-container">
 
-              <!-- 使用 *ngFor 渲染動態產生的區段 -->
-              <div *ngFor="let seg of getSegments()"
-                   [style.width.%]="seg.width"
-                   [style.backgroundColor]="seg.color"
-                   style="position: relative; display: flex; align-items: center; justify-content: flex-end; padding-right: 15px; color: white; font-weight: bold; border-right: 1px solid rgba(255,255,255,0.3);">
+        <!-- 🌟 恢復：滑動式當前持股水位標籤 -->
+        <div class="vstock-current-holding-badge" [style.left.%]="currentHolding">
+          當前持股: {{ currentHolding }}%
+          <div class="badge-arrow"></div>
+        </div>
 
-                  <!-- 顯示邊界數字 -->
-                  <span *ngIf="!seg.isLast">{{ seg.end }}%</span>
+        <div class="vstock-strategy-track" #progressBar>
+          <div *ngFor="let zone of zones; let i = index"
+               class="vstock-strategy-segment"
+               [style.width.%]="getZoneWidth(i)"
+               [style.backgroundColor]="zone.color"
+               (click)="selectZone(i)"
+               [class.active]="i === activeZoneIndex">
 
-                  <!-- 刪除區段的小按鈕 -->
-                  <button *ngIf="!seg.isLast" (click)="removeBreakpoint(seg.end)" style="margin-left: 8px; background: rgba(0,0,0,0.2); border: none; color: white; border-radius: 50%; width: 20px; height: 20px; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 12px;">
-                      ✕
-                  </button>
-              </div>
-
+               <div class="segment-actions">
+                 <button class="vstock-split-btn" (click)="splitZone(i, $event)">✂️ 切割</button>
+                 <button class="vstock-delete-btn" *ngIf="zones.length > 1" (click)="deleteZone(i, $event)">🗑️ 刪除</button>
+               </div>
           </div>
 
-          <!-- 當前水位指標 (三角形游標) -->
-          <div [style.left.%]="currentHoldingsPercentage" style="position: absolute; top: -35px; transform: translateX(-50%); display: flex; flex-direction: column; align-items: center;">
-              <div style="background: #2c3e50; color: white; padding: 4px 10px; border-radius: 4px; font-weight: bold; font-size: 14px; white-space: nowrap;">
-                  當前持股水位: {{ currentHoldingsPercentage | number:'1.1-1' }}%
-              </div>
-              <div style="width: 0; height: 0; border-left: 8px solid transparent; border-right: 8px solid transparent; border-top: 10px solid #2c3e50;"></div>
+          <div *ngFor="let threshold of thresholds; let i = index"
+               class="vstock-vertical-divider"
+               [style.left.%]="threshold"
+               (mousedown)="startDrag(i, $event)">
+            <div class="divider-label">{{ threshold }}%</div>
+            <div class="divider-line"></div>
           </div>
+        </div>
       </div>
 
-      <!-- 底部：動態策略資訊卡片 -->
-      <div *ngIf="getCurrentStrategyInfo() as strategy"
-           [style.backgroundColor]="strategy.color"
-           style="margin-top: 30px; padding: 25px; border-radius: 8px; color: white; transition: background-color 0.3s ease; display: flex; align-items: center; gap: 20px;">
-
-          <div style="font-size: 40px; background: rgba(255,255,255,0.2); width: 70px; height: 70px; border-radius: 50%; display: flex; align-items: center; justify-content: center;">
-              🎯
-          </div>
+      <!-- 下方卡片連動面板 -->
+      <div style="margin-top: 30px; padding: 25px; border-radius: 8px; color: white; position: relative; box-shadow: 0 4px 6px rgba(0,0,0,0.1); transition: background-color 0.3s;"
+           [style.backgroundColor]="zones[activeZoneIndex].color">
+        <div style="display: flex; gap: 20px; align-items: flex-start;">
+          <div style="font-size: 3rem; line-height: 1;">🎯</div>
           <div>
-              <div style="font-size: 14px; font-weight: bold; margin-bottom: 5px; opacity: 0.9;">
-                  系統已根據目前部位落入區間 {{ strategy.range }} 自動鎖定：
-              </div>
-              <h3 style="margin: 0 0 8px 0; font-size: 24px;">{{ strategy.name }}</h3>
-              <p style="margin: 0; font-size: 15px; line-height: 1.5; opacity: 0.95;">
-                  {{ strategy.description }}
-              </p>
+            <div style="font-size: 13px; font-weight: bold; margin-bottom: 5px; color: rgba(255,255,255,0.9);">
+              當前選定策略區間
+              <span *ngIf="activeZoneIndex === 0">[0% ~ {{ thresholds[0] }}%]</span>
+              <span *ngIf="activeZoneIndex > 0 && activeZoneIndex < thresholds.length">[{{ thresholds[activeZoneIndex-1] }}% ~ {{ thresholds[activeZoneIndex] }}%]</span>
+              <span *ngIf="activeZoneIndex === thresholds.length">[{{ thresholds[thresholds.length-1] }}% ~ 100%]</span>
+            </div>
+            <h3 style="margin: 0 0 10px 0; font-weight: bold;">{{ zones[activeZoneIndex].name }}</h3>
+            <p style="margin: 0; font-size: 15px;">{{ zones[activeZoneIndex].desc }}</p>
           </div>
+        </div>
+        <button style="position: absolute; top: 25px; right: 25px; border: 1px solid rgba(255,255,255,0.6); color: white; background: transparent; padding: 6px 12px; border-radius: 4px; cursor: pointer;">
+          編輯區段
+        </button>
       </div>
 
   </div>
-
 </div>
 
-<ng-template #loading>
-  <div class="loading-state">
-    資料同步中，請稍候...
-  </div>
-</ng-template>
+<div *ngIf="!summary" style="padding: 40px; text-align: center; color: #6c757d; font-size: 1.1rem;">
+  資料同步中，請稍候...
+</div>

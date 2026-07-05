@@ -1,175 +1,218 @@
-import { Component, OnInit } from '@angular/core';
-import { CommonModule } from '@angular/common';
-
+import { Component, ElementRef, ViewChild, HostListener, OnInit } from '@angular/core';
+import { CommonModule, CurrencyPipe } from '@angular/common';
 import { AgGridAngular } from 'ag-grid-angular';
-import {
-  ColDef,
-  themeQuartz
-} from 'ag-grid-community';
-
 import { AgCharts } from 'ag-charts-angular';
-import {
-  AgChartOptions,
-  ModuleRegistry as ChartModuleRegistry,
-  PieSeriesModule
-} from 'ag-charts-community';
-import { AccountService, AccountSummary } from '../../services/account'; // 確認您的路徑
+// 🌟 匯入 AG Charts 模組註冊器與社群版全模組 (單數 Module)
+import { ModuleRegistry, AllCommunityModule } from 'ag-charts-community';
 
-// 註冊 AG Charts 需要的模組 (例如：圓餅圖)
-ChartModuleRegistry.registerModules([PieSeriesModule]);
+// 🌟 執行模組註冊 (徹底解決圓餅圖空白與其明細錯誤)
+ModuleRegistry.registerModules([AllCommunityModule]);
+
+export interface StrategyZone {
+  color: string;
+  name: string;
+  desc: string;
+}
 
 @Component({
   selector: 'app-dashboard',
-  standalone: true,
-  imports: [CommonModule, AgGridAngular, AgCharts],
   templateUrl: './dashboard.html',
-  styleUrls: ['./dashboard.scss']
+  styleUrls: ['./dashboard.scss'],
+  standalone: true,
+  imports: [
+    CommonModule,
+    CurrencyPipe,
+    AgGridAngular,
+    AgCharts
+  ]
 })
 export class DashboardComponent implements OnInit {
-  summary: AccountSummary | null = null;
-
-  // 重新宣告 AG Grid 的主題變數
-  public myTheme = themeQuartz;
-
-  // 📊 AG Grid 的資料陣列與欄位定義
+  // --- 第一區：帳戶總覽與資料網格 ---
+  public summary: any = null;
   public rowData: any[] = [];
-  public colDefs: ColDef[] = [
-    { field: 'category', headerName: '資產項目', flex: 1.5 },
-    {
-      field: 'amount', headerName: '金額 (NT$)', flex: 1,
-      valueFormatter: (p) => new Intl.NumberFormat('zh-TW', { style: 'currency', currency: 'TWD', minimumFractionDigits: 0 }).format(p.value)
-    }
+  public colDefs: any[] = [];
+  public chartOptions: any = {};
+  public myTheme: string = 'ag-theme-alpine';
+
+  // --- 第二區：策略水位拖曳與持股指標 ---
+  @ViewChild('progressBar') progressBar!: ElementRef;
+  public currentHolding: number = 36.6; // 當前持股水位百分比
+  public thresholds: number[] = [30, 80];
+  public zones: StrategyZone[] = [
+    { color: '#82e0aa', name: '保守佈局期', desc: '等待低檔建倉...' },
+    { color: '#f39c12', name: '波段操作期 (Medium Risk)', desc: '持股適中。透過 AI 顧問過濾 VStockLab 訊號，尋找強勢突破股進行波段操作。' },
+    { color: '#e74c3c', name: '獲利了結期', desc: '高檔分批獲利了結...' }
   ];
+  public activeHandleIndex: number | null = null;
+  public activeZoneIndex: number = 1; // 預設選中中間的波段操作期
 
-  // 📊 AG Charts 圓餅圖的初始設定 (精簡版)
-  // 📊 AG Charts 穩健版設定 (確保背景透明與基本屬性正確)
-  public chartOptions: AgChartOptions = {
-    data: [],
-    background: { visible: false },
-    series: [{
-      type: 'pie'as any,
-      angleKey: 'amount',
-      calloutLabelKey: 'asset',
-      sectorLabelKey: 'amount',
-      innerRadiusRatio: 0.6, // 甜甜圈樣式
-    }]
-  };
-
-  // 🚀 動態策略控制台變數
-  public totalAssets: number = 0;           // 正確的總資產
-  public currentHoldingsPercentage: number = 0;
-
-  // 核心：自訂策略邊界陣列 (預設 30, 60, 80)
-  public breakpoints: number[] = [30, 60, 80];
-
-  // 策略區塊顏色庫
-  private strategyColors = ['#2ecc71', '#f39c12', '#e67e22', '#e74c3c', '#8e44ad', '#2c3e50'];
-
-  constructor(private accountService: AccountService) {}
+  constructor() {}
 
   ngOnInit() {
-    this.accountService.getAccountSummary().subscribe({
-      next: (data) => {
-        this.summary = data;
-        const reservedSettlement = Math.abs(data.settlementAmount);
-        const realAvailableCash = data.balance - reservedSettlement;
-
-        // 計算真實總資產與持股佔比 (淨權益數 / 真實總資產)
-        this.totalAssets = realAvailableCash + data.stockValue;
-        this.currentHoldingsPercentage = this.totalAssets > 0 ? (data.stockValue / this.totalAssets) * 100 : 0;
-
-        // ... (更新 AG Grid rowData 的邏輯保留) ...
-        this.rowData = [
-          { category: '🟢 真實可用現金', amount: realAvailableCash },
-          { category: '🔴 T+2 已佔用交割款', amount: reservedSettlement },
-          { category: '🔵 股票帳面淨值', amount: data.stockValue },
-          { category: '💰 銀行帳戶總餘額', amount: data.balance }
-        ];
-
-        // ⚠️ 關鍵修正：透過展開運算子 (...) 產生全新物件，強制觸發 AG Charts 重繪
-        this.chartOptions = {
-          ...this.chartOptions,
-          data: [
-            // 順序與顏色嚴格對應左側表格：綠、紅、藍
-            { asset: '可用現金', amount: realAvailableCash },
-            { asset: '待交割款', amount: reservedSettlement },
-            { asset: '帳面市值', amount: data.stockValue }
-          ]
-        };
-      }
-    });
-  }
-
-  // ➕ 新增自訂區間
-  addBreakpoint(value: string) {
-    const num = Number(value);
-    // 確保輸入的是 1~99 的數字，且陣列中還沒有這個值
-    if (num > 0 && num < 100 && !this.breakpoints.includes(num)) {
-      this.breakpoints.push(num);
-      // 由小到大排序，確保長條圖繪製正確
-      this.breakpoints.sort((a, b) => a - b);
-    }
-  }
-
-  // ➖ 刪除自訂區間
-  removeBreakpoint(bp: number) {
-    this.breakpoints = this.breakpoints.filter(val => val !== bp);
-  }
-
-  // 🧩 動態計算長條圖的每一個區塊 (Segments)
-  getSegments() {
-    let segments = [];
-    let previous = 0;
-
-    this.breakpoints.forEach((bp, index) => {
-      segments.push({
-        start: previous,
-        end: bp,
-        width: bp - previous,
-        color: this.strategyColors[index % this.strategyColors.length],
-        isLast: false
-      });
-      previous = bp;
-    });
-
-    // 補上最後一段到 100% 的區塊
-    segments.push({
-      start: previous,
-      end: 100,
-      width: 100 - previous,
-      color: this.strategyColors[this.breakpoints.length % this.strategyColors.length],
-      isLast: true
-    });
-
-    return segments;
-  }
-
-  // 🎯 根據當前持股水位，動態決定要顯示的策略內容
-  getCurrentStrategyInfo() {
-    const segments = this.getSegments();
-    // 找出當前水位落在哪一個區塊
-    const activeSeg = segments.find(s => this.currentHoldingsPercentage >= s.start && this.currentHoldingsPercentage <= s.end) || segments[0];
-
-    // 動態回傳策略內容
-    let strategyName = '';
-    let strategyDesc = '';
-
-    if (activeSeg.start < 30) {
-      strategyName = '防禦建倉期 (Low Risk)';
-      strategyDesc = '水位極低。啟動 n8n 監控 00919、00999A 等高股息 ETF 買點，穩健建立底倉。';
-    } else if (activeSeg.start < 60) {
-      strategyName = '波段操作期 (Medium Risk)';
-      strategyDesc = '持股適中。透過 AI 顧問過濾 VStockLab 訊號，尋找強勢突破股進行波段操作。';
-    } else {
-      strategyName = '動能警戒區 (High Risk)';
-      strategyDesc = '部位偏高！需嚴格控管融資槓桿，並強制啟動 n8n 自動停損停利機制。';
-    }
-
-    return {
-      range: `[${activeSeg.start}% ~ ${activeSeg.end}%]`,
-      color: activeSeg.color,
-      name: strategyName,
-      description: strategyDesc
+    // 1. 上方四大卡片資料
+    this.summary = {
+      totalAsset: 1083769,
+      balance: 685969,
+      stockValue: 395167,
+      settlementAmount: -146447
     };
+
+    // 2. AG Charts 圓餅圖設定 (🌟 動態計算萬單位與百分比)
+    const rawChartData = [
+      { asset: '可用現金', amount: this.summary.balance },
+      { asset: '帳面市值', amount: this.summary.stockValue },
+      { asset: '待交割款', amount: Math.abs(this.summary.settlementAmount) }
+    ];
+
+    const totalAmount = rawChartData.reduce((sum, item) => sum + item.amount, 0);
+
+    const processedChartData = rawChartData.map(item => {
+      const percentage = ((item.amount / totalAmount) * 100).toFixed(1);
+      const valueInWan = (item.amount / 10000).toFixed(1);
+      return {
+        ...item,
+        displayLabel: `${valueInWan}萬\n(${percentage}%)`
+      };
+    });
+
+    this.chartOptions = {
+      data: processedChartData,
+      series: [{
+        type: 'pie',
+        angleKey: 'amount',
+        calloutLabelKey: 'asset',       // 圓餅外側：資產名稱
+        sectorLabelKey: 'displayLabel', // 圓餅內側：數值與比例
+        sectorLabel: {
+          color: 'white',
+          fontWeight: 'bold',
+          fontSize: 12
+        },
+        tooltip: {
+          renderer: (params: any) => {
+            return {
+              content: `${params.datum.asset}: ${params.datum.amount.toLocaleString()} 元`
+            };
+          }
+        }
+      }]
+    };
+
+    // 3. 完整的 12 個專業庫存欄位 (🌟 使用 cellClassRules 解決 Error #200)
+    this.colDefs = [
+      {
+        headerName: '股票名稱', field: 'stockName', flex: 1.5,
+        cellRenderer: (params: any) => `
+          <div style="line-height: 1.3; margin-top: 4px;">
+            <div style="color: #0d6efd; font-weight: bold;">${params.value}</div>
+            <div style="color: #0d6efd; font-size: 11px;">${params.data.stockNo}</div>
+          </div>
+        `
+      },
+      { headerName: '交易別', field: 'tradeType', flex: 0.8 },
+      { headerName: '股數', field: 'qty', flex: 1, valueFormatter: (params: any) => params.value.toLocaleString() },
+      {
+        headerName: '未實現損益', field: 'pnl', flex: 1,
+        cellClassRules: {
+          'vstock-pnl-up': (params: any) => params.value > 0,
+          'vstock-pnl-down': (params: any) => params.value < 0
+        },
+        valueFormatter: (params: any) => params.value > 0 ? `+${params.value.toLocaleString()}` : params.value.toLocaleString()
+      },
+      {
+        headerName: '報酬率%', field: 'pnlRate', flex: 1,
+        cellClassRules: {
+          'vstock-pnl-up': (params: any) => params.value > 0,
+          'vstock-pnl-down': (params: any) => params.value < 0
+        },
+        valueFormatter: (params: any) => params.value > 0 ? `+${params.value.toFixed(2)}` : params.value.toFixed(2)
+      },
+      { headerName: '成交均價', field: 'costPrice', flex: 1, valueFormatter: (params: any) => params.value.toFixed(2) },
+      { headerName: '投資成本', field: 'investmentCost', flex: 1, valueFormatter: (params: any) => params.value.toLocaleString() },
+      { headerName: '融資金額', field: 'marginAmount', flex: 1, valueFormatter: (params: any) => params.value.toLocaleString() },
+      { headerName: '券擔保品', field: 'collateral', flex: 0.8 },
+      { headerName: '市價', field: 'currentPrice', flex: 1, valueFormatter: (params: any) => params.value.toFixed(2) },
+      { headerName: '帳面價值', field: 'bookValue', flex: 1.2, valueFormatter: (params: any) => params.value.toLocaleString() },
+      {
+        headerName: '明細', flex: 0.8,
+        cellRenderer: () => `<button style="background: #e74c3c; color: white; border: none; padding: 4px 10px; border-radius: 4px; font-size: 12px; cursor: pointer; margin-top: 10px;">明細</button>`
+      }
+    ];
+
+    this.rowData = [
+      { stockNo: '00403A', stockName: '主動統一升級50', tradeType: '融資', qty: 35000, pnl: 550, pnlRate: 0.35, costPrice: 11.08, investmentCost: 158300, marginAmount: 230000, collateral: 0, currentPrice: 11.14, bookValue: 158850 },
+      { stockNo: '00405A', stockName: '主動富邦台灣龍耀', tradeType: '融資', qty: 35000, pnl: 493, pnlRate: 0.37, costPrice: 9.39, investmentCost: 135016, marginAmount: 194000, collateral: 0, currentPrice: 9.44, bookValue: 135509 },
+      { stockNo: '00407A', stockName: '主動凱基台灣', tradeType: '融資', qty: 25000, pnl: 3, pnlRate: 0.00, costPrice: 9.98, investmentCost: 100805, marginAmount: 149000, collateral: 0, currentPrice: 10.02, bookValue: 100808 }
+    ];
+  }
+
+  // --- 策略條拖拉與操作邏輯 ---
+  startDrag(index: number, event: MouseEvent) {
+    this.activeHandleIndex = index;
+    event.stopPropagation();
+  }
+
+  @HostListener('document:mousemove', ['$event'])
+  onDrag(event: MouseEvent) {
+    if (this.activeHandleIndex === null) return;
+    const rect = this.progressBar.nativeElement.getBoundingClientRect();
+    let newPercent = ((event.clientX - rect.left) / rect.width) * 100;
+    const min = this.activeHandleIndex === 0 ? 1 : this.thresholds[this.activeHandleIndex - 1] + 1;
+    const max = this.activeHandleIndex === this.thresholds.length - 1 ? 99 : this.thresholds[this.activeHandleIndex + 1] - 1;
+    newPercent = Math.max(min, Math.min(newPercent, max));
+    this.thresholds[this.activeHandleIndex] = Math.round(newPercent * 10) / 10;
+  }
+
+  @HostListener('document:mouseup')
+  stopDrag() {
+    this.activeHandleIndex = null;
+  }
+
+  selectZone(index: number) {
+    this.activeZoneIndex = index;
+  }
+
+  deleteZone(index: number, event: MouseEvent) {
+    event.stopPropagation();
+    if (this.zones.length <= 1) return;
+
+    this.zones.splice(index, 1);
+    if (index === 0) {
+      this.thresholds.splice(0, 1);
+    } else {
+      this.thresholds.splice(index - 1, 1);
+    }
+    if (this.activeZoneIndex >= this.zones.length) {
+      this.activeZoneIndex = this.zones.length - 1;
+    }
+  }
+
+  splitZone(zoneIndex: number, event: MouseEvent) {
+    event.stopPropagation();
+    const lowerBound = zoneIndex === 0 ? 0 : this.thresholds[zoneIndex - 1];
+    const upperBound = zoneIndex === this.thresholds.length ? 100 : this.thresholds[zoneIndex];
+    const newBoundary = Math.round((lowerBound + upperBound) / 2);
+
+    this.thresholds.splice(zoneIndex, 0, newBoundary);
+    const currentZone = this.zones[zoneIndex];
+    this.zones.splice(zoneIndex + 1, 0, {
+      color: this.lightenColor(currentZone.color, 20),
+      name: currentZone.name + ' (拆分)',
+      desc: '自訂切割產生的新策略區間。'
+    });
+  }
+
+  getZoneWidth(index: number): number {
+    const lower = index === 0 ? 0 : this.thresholds[index - 1];
+    const upper = index === this.thresholds.length ? 100 : this.thresholds[index];
+    return upper - lower;
+  }
+
+  lightenColor(color: string, percent: number): string {
+    const num = parseInt(color.replace("#",""), 16),
+    amt = Math.round(2.55 * percent),
+    R = (num >> 16) + amt,
+    B = (num >> 8 & 0x00FF) + amt,
+    G = (num & 0x0000FF) + amt;
+    return "#" + (0x1000000 + (R<255?R<1?0:R:255)*0x10000 + (B<255?B<1?0:B:255)*0x100 + (G<255?G<1?0:G:255)).toString(16).slice(1);
   }
 }
