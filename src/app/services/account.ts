@@ -37,4 +37,23 @@ export class AccountService {
   getInventory(): Observable<InventoryItem[]> {
     return this.http.get<InventoryItem[]>(`${this.apiUrl}/inventory`);
   }
+
+  // ==========================================
+  // 🌟 修正：補上 http://localhost:3000 確保資料送對後端伺服器
+  // ==========================================
+  saveStrategySettings(accountNumber: string, ownerName: string, settings: any) {
+    const payload = {
+      accountNumber: accountNumber,
+      ownerName: ownerName,
+      settings: settings
+    };
+    // 🌟 加上完整的後端網址
+    return this.http.post('http://localhost:3000/api/strategy/save', payload);
+  }
+
+  loadStrategySettings(accountNumber: string, ownerName: string) {
+    // 🌟 加上完整的後端網址
+    return this.http.get<any>(`http://localhost:3000/api/strategy/load?accountNumber=${accountNumber}&ownerName=${ownerName}`);
+  }
+  // ==========================================
 }

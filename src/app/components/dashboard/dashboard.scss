@@ -19,40 +19,6 @@
   font-weight: bold !important;
 }
 
-.vstock-strategy-container {
-  position: relative; /* 給予相對定位，讓持股標籤精準浮動 */
-  padding: 35px 10px 30px 10px;
-  width: 100%;
-}
-
-/* 🌟 恢復：當前持股黑色氣泡提示框樣式 */
-.vstock-current-holding-badge {
-  position: absolute;
-  top: -2px;
-  transform: translateX(-50%);
-  background: #2c3e50;
-  color: #ffffff;
-  padding: 4px 10px;
-  font-size: 12px;
-  font-weight: bold;
-  border-radius: 4px;
-  white-space: nowrap;
-  box-shadow: 0 2px 5px rgba(0,0,0,0.2);
-  z-index: 12;
-
-  .badge-arrow {
-    position: absolute;
-    bottom: -5px;
-    left: 50%;
-    transform: translateX(-50%);
-    width: 0;
-    height: 0;
-    border-left: 5px solid transparent;
-    border-right: 5px solid transparent;
-    border-top: 5px solid #2c3e50;
-  }
-}
-
 .vstock-strategy-track {
   position: relative;
   display: flex !important;
@@ -67,56 +33,59 @@
   user-select: none;
 }
 
-.vstock-strategy-segment {
-  position: relative;
-  height: 100%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: all 0.2s;
-  flex-shrink: 0;
-  cursor: pointer;
+ .vstock-strategy-segment {
+   position: relative;
+   height: 100%;
+   display: flex;
+   align-items: center;
+   justify-content: center;
+   transition: all 0.2s;
+   flex-shrink: 0;
+   cursor: pointer;
 
-  &.active {
-    box-shadow: inset 0 -4px 0 rgba(255,255,255,0.6);
-    filter: brightness(1.05);
-  }
+   &.active {
+     box-shadow: inset 0 -4px 0 rgba(255,255,255,0.6);
+     filter: brightness(1.05);
+   }
 
-  &:first-child { border-top-left-radius: 6px; border-bottom-left-radius: 6px; }
-  &:last-child { border-top-right-radius: 6px; border-bottom-right-radius: 6px; }
+   &:first-child { border-top-left-radius: 6px; border-bottom-left-radius: 6px; }
+   &:last-child { border-top-right-radius: 6px; border-bottom-right-radius: 6px; }
 
-  .segment-actions {
-    display: flex;
-    gap: 5px;
-    opacity: 0;
-    transform: scale(0.9);
-    transition: all 0.2s ease-in-out;
-    z-index: 5;
-  }
+   .segment-actions {
+     display: flex;
+     gap: 5px;
+     opacity: 0;
+     transform: scale(0.9);
+     transition: all 0.2s ease-in-out;
+     z-index: 5;
+     pointer-events: none; /* 🌟 修正 1：隱藏狀態下，徹底穿透滑鼠點擊，絕不攔截 */
+   }
 
-  .vstock-split-btn, .vstock-delete-btn {
-    background: rgba(255, 255, 255, 0.95);
-    border: 1px solid #ccc;
-    color: #333;
-    border-radius: 4px;
-    padding: 4px 8px;
-    font-size: 12px;
-    font-weight: bold;
-    cursor: pointer;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+   .vstock-split-btn, .vstock-delete-btn {
+     background: rgba(255, 255, 255, 0.95);
+     border: 1px solid #ccc;
+     color: #333;
+     border-radius: 4px;
+     padding: 4px 8px;
+     font-size: 12px;
+     font-weight: bold;
+     cursor: pointer;
+     box-shadow: 0 2px 4px rgba(0,0,0,0.2);
 
-    &:hover { background: #fff; }
-  }
+     &:hover { background: #fff; }
+   }
 
-  .vstock-delete-btn {
-    color: #d32f2f;
-  }
+   .vstock-delete-btn {
+     color: #d32f2f;
+   }
 
-  &:hover .segment-actions {
-    opacity: 1;
-    transform: scale(1);
-  }
-}
+   /* 🌟 修正 2：嚴格限制只有在被「選取 (active)」且「滑鼠懸浮」時，按鈕才出現並恢復點擊 */
+   &.active:hover .segment-actions {
+     opacity: 1;
+     transform: scale(1);
+     pointer-events: auto;
+   }
+ }
 
 .vstock-vertical-divider {
   position: absolute;
@@ -158,5 +127,130 @@
     border-radius: 4px;
     border: 1px solid #ccc;
     box-shadow: 0 1px 2px rgba(0,0,0,0.1);
+  }
+}
+
+/* 🌟 給予足夠的上下留白，避免氣泡跟下方文字被切掉 */
+.vstock-strategy-container {
+  position: relative; /* 👈 修正：改回 relative 讓下方卡片乖乖排在下面 */
+  padding: 55px 10px 50px 10px;
+  width: 100%;
+  box-sizing: border-box; /* 👈 修正：確保 padding 不會讓寬度爆出畫面 */
+}
+
+/* 🌟 修正：本金錨點 (紫線貫穿軌道往下，文字掛在下方) */
+.vstock-cost-anchor {
+  position: absolute;
+  top: -5px;     /* 從軌道稍微上面一點開始 */
+  bottom: -10px; /* 往下貫穿軌道 */
+  width: 2px;
+  margin-left: -1px;
+  z-index: 5;
+  pointer-events: none; /* 避免滑鼠點擊干擾下方策略區塊 */
+
+  .anchor-label {
+    position: absolute;
+    bottom: -36px; /* 懸掛在紫色虛線的最下方 */
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 11px;
+    font-weight: bold;
+    color: #8e44ad;
+    background: #ffffff; /* 白底防干擾 */
+    padding: 3px 6px;
+    border-radius: 4px;
+    border: 1px solid #8e44ad;
+    white-space: nowrap;
+    text-align: center;
+    line-height: 1.3;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+  }
+
+  .anchor-line {
+    width: 100%;
+    height: 100%;
+    border-left: 2px dashed #8e44ad;
+  }
+}
+
+/* 🌟 修正：損益動態斜紋色帶 (精準貼在軌道上緣) */
+.vstock-pnl-delta {
+  position: absolute;
+  top: -8px; /* 貼緊軌道上邊緣 */
+  height: 8px;
+  border-radius: 4px;
+  z-index: 6;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+  pointer-events: none;
+}
+/* 台股：紅賺、綠賠 (使用斜線條紋區別於策略區塊) */
+.profit-bg {
+  background: repeating-linear-gradient(45deg, #e74c3c, #e74c3c 8px, #c0392b 8px, #c0392b 16px);
+}
+.loss-bg {
+  background: repeating-linear-gradient(45deg, #2ecc71, #2ecc71 8px, #27ae60 8px, #27ae60 16px);
+}
+
+/* 🌟 修正：當前市值氣泡 (高高懸浮在最上方，加上顏色切換) */
+.vstock-current-holding-badge {
+  position: absolute;
+  top: -42px; /* 提高懸浮位置，遠離損益色帶 */
+  transform: translateX(-50%);
+  color: #ffffff;
+  padding: 5px 10px;
+  font-size: 13px;
+  font-weight: bold;
+  border-radius: 4px;
+  white-space: nowrap;
+  box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+  z-index: 12;
+
+  &.profit-badge { background: #e74c3c; border: 1px solid #c0392b; }
+  &.loss-badge { background: #2ecc71; border: 1px solid #27ae60; }
+
+  .badge-arrow {
+    position: absolute;
+    bottom: -6px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 0;
+    height: 0;
+    border-left: 6px solid transparent;
+    border-right: 6px solid transparent;
+  }
+  &.profit-badge .badge-arrow { border-top: 6px solid #e74c3c; }
+  &.loss-badge .badge-arrow { border-top: 6px solid #2ecc71; }
+}
+
+/* 🌟 新增：100% 總資金池標示點 */
+.vstock-pool-anchor {
+  position: absolute;
+  top: -5px;
+  bottom: -10px;
+  width: 2px;
+  z-index: 4; /* 層級放在軌道之上，氣泡之下 */
+  pointer-events: none;
+
+  .pool-anchor-label {
+    position: absolute;
+    bottom: -36px;
+    right: -2px; /* 靠右對齊，避免超出畫面邊界被切掉 */
+    font-size: 11px;
+    font-weight: bold;
+    color: #7f8c8d; /* 沉穩的灰色 */
+    background: #ffffff;
+    padding: 3px 6px;
+    border-radius: 4px;
+    border: 1px solid #bdc3c7;
+    white-space: nowrap;
+    text-align: center;
+    line-height: 1.3;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+  }
+
+  .pool-anchor-line {
+    width: 100%;
+    height: 100%;
+    border-left: 2px dashed #95a5a6; /* 灰色的虛線 */
   }
 }

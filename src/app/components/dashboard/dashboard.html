@@ -15,6 +15,12 @@
       <h6 style="color: #2ecc71; font-weight: bold; margin-bottom: 10px;">真實可用現金 (購買力)</h6>
       <h2 style="margin: 0; font-weight: bold; color: #2ecc71;">{{ summary.balance | currency:'TWD':'symbol':'1.0-0' }}</h2>
     </div>
+    <div style="flex: 1; background: white; padding: 25px; border-radius: 8px; border-left: 5px solid #8e44ad; box-shadow: 0 4px 12px rgba(0,0,0,0.05);">
+      <h6 style="color: #8e44ad; font-weight: bold; margin-bottom: 10px;">總投資成本</h6>
+      <h2 style="margin: 0; font-weight: bold; color: #8e44ad;">
+        {{ summary.totalInvestmentCost ? (summary.totalInvestmentCost | currency:'TWD':'symbol':'1.0-0') : 'NT$0' }}
+      </h2>
+    </div>
 
     <div style="flex: 1; background: white; padding: 25px; border-radius: 8px; border-left: 5px solid #3498db; box-shadow: 0 4px 12px rgba(0,0,0,0.05);">
       <h6 style="color: #3498db; font-weight: bold; margin-bottom: 10px;">股票帳面淨值</h6>
@@ -65,22 +71,80 @@
       <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #eee; padding-bottom: 15px; margin-bottom: 35px;">
           <h2 style="margin: 0; color: #2c3e50; font-weight: bold;">🤖 AI 策略水位監控中心</h2>
           <div style="display: flex; align-items: center; gap: 10px;">
+            <span style="font-size: 13px; color: #8e44ad; font-weight: bold; margin-right: 15px;" *ngIf="accountNumber">
+              👤 當前綁定: {{ ownerName }} ({{ accountNumber }})
+            </span>
             <span style="font-size: 14px; color: #666;">自訂策略邊界 (%)：</span>
             <input type="number" style="width: 80px; padding: 5px; border: 1px solid #ccc; border-radius: 4px;" placeholder="例如: 45">
-            <button style="background: #3498db; color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer;">+ 新增區段</button>
+            <button style="background: #3498db; color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-weight: bold;">
+              + 新增區段
+            </button>
+            <!-- 🌟 新增的儲存按鈕 -->
+            <button (click)="saveSettings()" style="background: #2ecc71; color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-weight: bold; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+              💾 儲存設定
+            </button>
           </div>
       </div>
 
-      <!-- 動態策略條軌道與持股標籤 -->
-      <div class="vstock-strategy-container">
+      <!-- 🌟 水位條上方的數值看板 -->
+      <div style="display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 15px; padding: 0 10px;">
 
-        <!-- 🌟 恢復：滑動式當前持股水位標籤 -->
-        <div class="vstock-current-holding-badge" [style.left.%]="currentHolding">
-          當前持股: {{ currentHolding }}%
-          <div class="badge-arrow"></div>
+        <!-- 左側：本金投入與市值淨值 -->
+        <div>
+          <span style="color: #8e44ad; font-weight: bold; margin-right: 25px; font-size: 1.1rem;">
+            📥 本金投入: {{ summary.totalInvestmentCost | currency:'TWD':'symbol':'1.0-0' }}
+          </span>
+          <span [style.color]="isProfit ? '#e74c3c' : '#2ecc71'" style="font-weight: bold; font-size: 1.1rem;">
+            📈 市值淨值: {{ summary.stockValue | currency:'TWD':'symbol':'1.0-0' }}
+            <span style="font-size: 14px;">
+              ({{ isProfit ? '+' : '' }}{{ summary.stockValue - summary.totalInvestmentCost | currency:'TWD':'symbol':'1.0-0' }})
+            </span>
+          </span>
         </div>
 
+        <!-- 右側：總資金池 (完美對齊 100% 尾邊) -->
+        <div style="color: #7f8c8d; font-size: 14px; font-weight: bold; text-align: right;">
+          🏦 總資金池 (100% 尾邊基準) = {{ baseCapital | currency:'TWD':'symbol':'1.0-0' }}
+        </div>
+
+      </div>
+
+      <!-- 動態策略條軌道與雙指標 -->
+      <div class="vstock-strategy-container">
+
+        <!-- 原本的策略條軌道 (設定為相對定位的基準) -->
         <div class="vstock-strategy-track" #progressBar>
+
+          <!-- 🌟 1. 本金錨點 (紫線往下方延伸，標籤掛在最下面) -->
+          <div class="vstock-cost-anchor" [style.left.%]="costPercent">
+            <div class="anchor-label">本金水位<br>{{ costPercent }}%</div>
+            <div class="anchor-line"></div>
+          </div>
+
+          <!-- 🌟 2. 損益拉鋸色帶 (精準貼在軌道正上方) -->
+          <div class="vstock-pnl-delta"
+               [class.profit-bg]="isProfit"
+               [class.loss-bg]="!isProfit"
+               [style.left.%]="deltaLeft"
+               [style.width.%]="deltaWidth">
+          </div>
+
+          <!-- 🌟 3. 當前市值氣泡 (高高懸浮在上方，絕不與本金打架) -->
+          <div class="vstock-current-holding-badge"
+               [class.profit-badge]="isProfit"
+               [class.loss-badge]="!isProfit"
+               [style.left.%]="valuePercent">
+            市值: {{ valuePercent }}%
+            <div class="badge-arrow"></div>
+          </div>
+
+          <!-- 🌟 4. 總資金池 100% 標籤 (固定在最右側) -->
+          <div class="vstock-pool-anchor" style="left: 100%;">
+            <div class="pool-anchor-label">總資金<br>100%</div>
+            <div class="pool-anchor-line"></div>
+          </div>
+
+          <!-- 軌道內的策略色塊區段 -->
           <div *ngFor="let zone of zones; let i = index"
                class="vstock-strategy-segment"
                [style.width.%]="getZoneWidth(i)"
@@ -94,6 +158,7 @@
                </div>
           </div>
 
+          <!-- 軌道內的白色拖曳分割線 -->
           <div *ngFor="let threshold of thresholds; let i = index"
                class="vstock-vertical-divider"
                [style.left.%]="threshold"
@@ -109,20 +174,99 @@
            [style.backgroundColor]="zones[activeZoneIndex].color">
         <div style="display: flex; gap: 20px; align-items: flex-start;">
           <div style="font-size: 3rem; line-height: 1;">🎯</div>
-          <div>
+          <div style="flex: 1;">
+
             <div style="font-size: 13px; font-weight: bold; margin-bottom: 5px; color: rgba(255,255,255,0.9);">
               當前選定策略區間
               <span *ngIf="activeZoneIndex === 0">[0% ~ {{ thresholds[0] }}%]</span>
               <span *ngIf="activeZoneIndex > 0 && activeZoneIndex < thresholds.length">[{{ thresholds[activeZoneIndex-1] }}% ~ {{ thresholds[activeZoneIndex] }}%]</span>
               <span *ngIf="activeZoneIndex === thresholds.length">[{{ thresholds[thresholds.length-1] }}% ~ 100%]</span>
             </div>
-            <h3 style="margin: 0 0 10px 0; font-weight: bold;">{{ zones[activeZoneIndex].name }}</h3>
-            <p style="margin: 0; font-size: 15px;">{{ zones[activeZoneIndex].desc }}</p>
+
+            <!-- 🌟 檢視模式：正常顯示文字 -->
+            <ng-container *ngIf="!isEditingZone">
+              <h3 style="margin: 0 0 10px 0; font-weight: bold;">{{ zones[activeZoneIndex].name }}</h3>
+
+              <!-- 顯示選項 (Target) -->
+              <div style="font-size: 14px; font-weight: bold; margin-bottom: 8px; color: rgba(255,255,255,0.95); background: rgba(0,0,0,0.15); padding: 4px 10px; border-radius: 4px; display: inline-block;">
+                🎯 監控標的：{{ zones[activeZoneIndex].target || '所有股票' }}
+              </div>
+
+              <!-- 顯示策略 (Prompt) -->
+              <div style="margin: 0; font-size: 14px; line-height: 1.6; background: rgba(0,0,0,0.1); padding: 12px; border-radius: 6px; border-left: 4px solid rgba(255,255,255,0.5);">
+                <div style="font-size: 12px; opacity: 0.8; margin-bottom: 4px; font-weight: bold;">🤖 AI 策略提示詞 (供 n8n 參數傳遞)：</div>
+                {{ zones[activeZoneIndex].prompt || zones[activeZoneIndex].desc }}
+              </div>
+            </ng-container>
+
+            <!-- 🌟 編輯模式：顯示輸入框 -->
+            <ng-container *ngIf="isEditingZone">
+
+              <!-- 名稱 -->
+              <div style="margin-bottom: 12px;">
+                <input type="text"
+                       [value]="editTempName"
+                       (input)="editTempName = $any($event.target).value"
+                       style="width: 100%; max-width: 400px; padding: 8px 12px; border: none; border-radius: 4px; font-size: 1.1rem; font-weight: bold; color: #333; outline: none; box-shadow: inset 0 1px 3px rgba(0,0,0,0.1);"
+                       placeholder="策略區間名稱">
+              </div>
+
+              <!-- 選項：目標股票下拉選單 -->
+              <div style="margin-bottom: 12px; display: flex; align-items: center; gap: 10px;">
+                <span style="font-size: 14px; font-weight: bold; color: #fff;">🎯 監控標的：</span>
+                <select [value]="editTempTarget"
+                        (change)="editTempTarget = $any($event.target).value"
+                        style="padding: 6px 10px; border: none; border-radius: 4px; font-size: 14px; color: #333; outline: none; box-shadow: inset 0 1px 3px rgba(0,0,0,0.1); width: 250px; font-weight: bold;">
+                  <option *ngFor="let target of availableTargets" [value]="target">{{ target }}</option>
+                </select>
+              </div>
+
+              <!-- 策略：AI Prompt 文字區塊 -->
+              <div>
+                <!-- 🌟 標題與「快速套用選單」水平並排 -->
+                <div style="display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 8px; max-width: 800px;">
+                  <div style="font-size: 14px; font-weight: bold; color: #fff;">🤖 AI 策略提示詞 (將做為 Prompt 變數)：</div>
+
+                  <!-- 快速套用系統策略下拉選單 -->
+                  <select (change)="applySystemPrompt($event)"
+                          style="padding: 4px 8px; border: none; border-radius: 4px; font-size: 13px; color: #333; outline: none; box-shadow: inset 0 1px 3px rgba(0,0,0,0.2); width: 220px; cursor: pointer; background-color: #f8f9fa;">
+                    <option *ngFor="let p of systemPrompts" [value]="p.value">{{ p.label }}</option>
+                  </select>
+                </div>
+
+                <textarea
+                       [value]="editTempPrompt"
+                       (input)="editTempPrompt = $any($event.target).value"
+                       style="width: 100%; max-width: 800px; padding: 12px; border: none; border-radius: 4px; font-size: 14px; color: #333; min-height: 120px; resize: vertical; outline: none; line-height: 1.5; box-shadow: inset 0 1px 3px rgba(0,0,0,0.1);"
+                       placeholder="請輸入策略邏輯，或從右上角選單快速套用系統範本..."></textarea>
+              </div>
+            </ng-container>
+
           </div>
         </div>
-        <button style="position: absolute; top: 25px; right: 25px; border: 1px solid rgba(255,255,255,0.6); color: white; background: transparent; padding: 6px 12px; border-radius: 4px; cursor: pointer;">
-          編輯區段
-        </button>
+
+        <!-- 右上角按鈕區塊 (根據編輯狀態切換按鈕) -->
+        <div style="position: absolute; top: 25px; right: 25px; display: flex; gap: 10px;">
+
+          <!-- 檢視模式下的按鈕 -->
+          <button *ngIf="!isEditingZone" (click)="startEditZone()"
+                  style="border: 1px solid rgba(255,255,255,0.6); color: white; background: transparent; padding: 6px 12px; border-radius: 4px; cursor: pointer; transition: background 0.2s;">
+            ✏️ 編輯區段
+          </button>
+
+          <!-- 編輯模式下的按鈕 -->
+          <ng-container *ngIf="isEditingZone">
+            <button (click)="cancelZoneEdit()"
+                    style="border: 1px solid rgba(255,255,255,0.6); color: white; background: transparent; padding: 6px 12px; border-radius: 4px; cursor: pointer;">
+              取消
+            </button>
+            <button (click)="saveZoneEdit()"
+                    style="border: none; color: #333; background: #fff; padding: 6px 12px; border-radius: 4px; font-weight: bold; cursor: pointer; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+              💾 儲存變更
+            </button>
+          </ng-container>
+
+        </div>
       </div>
 
   </div>
